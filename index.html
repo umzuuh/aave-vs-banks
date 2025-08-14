@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top 40 US Banks by Assets</title>
+    <title>Aave vs Banks</title>
     <style>
         body {
             background-color: #9896FF;
@@ -36,62 +36,174 @@
             background-color: rgba(255, 255, 255, 0.2);
             font-weight: bold;
         }
+        
+        .aave-row {
+            background-color: rgba(255, 255, 255, 0.15);
+            font-weight: bold;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Aave vs Banks</h1>
-    <p>Data source: <a href="https://www.federalreserve.gov/releases/lbr/current/" target="_blank">Federal Reserve Statistical Release</a></p>
+    <p>Data sources: <a href="https://www.federalreserve.gov/releases/lbr/current/" target="_blank">Federal Reserve Statistical Release</a> | <a href="https://defillama.com/protocol/aave-v3" target="_blank">DeFiLlama AAVE V3</a></p>
     
-    <table border="1">
+    <div id="loading" class="loading">Loading AAVE TVL data...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    
+    <table border="1" id="rankingTable">
         <thead>
             <tr>
                 <th>Rank</th>
                 <th>Name</th>
-                <th>Consolidated Assets (Millions $)</th>
+                <th>Consolidated Assets/TVL (Millions $)</th>
+                <th>Type</th>
             </tr>
         </thead>
-        <tbody>
-            <tr><td>1</td><td>JPMORGAN CHASE BK NA</td><td>3,643,099</td></tr>
-            <tr><td>2</td><td>BANK OF AMER NA</td><td>2,615,296</td></tr>
-            <tr><td>3</td><td>CITIBANK NA</td><td>1,760,921</td></tr>
-            <tr><td>4</td><td>WELLS FARGO BK NA</td><td>1,711,028</td></tr>
-            <tr><td>5</td><td>U S BK NA</td><td>659,191</td></tr>
-            <tr><td>6</td><td>GOLDMAN SACHS BK USA</td><td>598,460</td></tr>
-            <tr><td>7</td><td>PNC BK NA</td><td>549,324</td></tr>
-            <tr><td>8</td><td>TRUIST BK</td><td>527,488</td></tr>
-            <tr><td>9</td><td>CAPITAL ONE NA</td><td>490,573</td></tr>
-            <tr><td>10</td><td>STATE STREET B&TC</td><td>368,219</td></tr>
-            <tr><td>11</td><td>TD BK NA</td><td>366,507</td></tr>
-            <tr><td>12</td><td>BANK OF NY MELLON</td><td>356,262</td></tr>
-            <tr><td>13</td><td>BMO BK NA</td><td>257,049</td></tr>
-            <tr><td>14</td><td>MORGAN STANLEY BK NA</td><td>234,481</td></tr>
-            <tr><td>15</td><td>FIRST-CITIZENS B&TC</td><td>228,632</td></tr>
-            <tr><td>16</td><td>MORGAN STANLEY PRIV BK NA</td><td>223,785</td></tr>
-            <tr><td>17</td><td>CITIZENS BK NA</td><td>220,014</td></tr>
-            <tr><td>18</td><td>FIFTH THIRD BK NA</td><td>211,921</td></tr>
-            <tr><td>19</td><td>MANUFACTURERS & TRADERS TC</td><td>209,801</td></tr>
-            <tr><td>20</td><td>HUNTINGTON NB</td><td>208,159</td></tr>
-            <tr><td>21</td><td>AMERICAN EXPRESS NB</td><td>203,448</td></tr>
-            <tr><td>22</td><td>KEYBANK NA</td><td>185,776</td></tr>
-            <tr><td>23</td><td>ALLY BK</td><td>182,323</td></tr>
-            <tr><td>24</td><td>HSBC BK USA NA</td><td>166,237</td></tr>
-            <tr><td>25</td><td>NORTHERN TC</td><td>164,498</td></tr>
-            <tr><td>26</td><td>REGIONS BK</td><td>158,421</td></tr>
-            <tr><td>27</td><td>DISCOVER BK</td><td>145,413</td></tr>
-            <tr><td>28</td><td>SANTANDER BK NA</td><td>104,559</td></tr>
-            <tr><td>29</td><td>FLAGSTAR BK NA</td><td>97,568</td></tr>
-            <tr><td>30</td><td>CITY NB</td><td>93,149</td></tr>
-            <tr><td>31</td><td>ZIONS BC NA</td><td>87,992</td></tr>
-            <tr><td>32</td><td>WESTERN ALLI BK</td><td>82,944</td></tr>
-            <tr><td>33</td><td>FIRST HORIZON BK</td><td>81,202</td></tr>
-            <tr><td>34</td><td>WEBSTER BK NA</td><td>80,212</td></tr>
-            <tr><td>35</td><td>COMERICA BK</td><td>77,698</td></tr>
-            <tr><td>36</td><td>EAST WEST BK</td><td>75,712</td></tr>
-            <tr><td>37</td><td>UMB BK NA</td><td>69,014</td></tr>
-            <tr><td>38</td><td>SOUTHSTATE BK NA</td><td>65,109</td></tr>
-            <tr><td>39</td><td>VALLEY NB</td><td>61,818</td></tr>
-            <tr><td>40</td><td>CIBC BK USA</td><td>61,303</td></tr>
+        <tbody id="tableBody">
+            <!-- Data will be populated dynamically -->
         </tbody>
     </table>
+
+    <script>
+        // Bank data from Federal Reserve
+        const banksData = [
+            { name: "JPMORGAN CHASE BK NA", assets: 3643099 },
+            { name: "BANK OF AMER NA", assets: 2615296 },
+            { name: "CITIBANK NA", assets: 1760921 },
+            { name: "WELLS FARGO BK NA", assets: 1711028 },
+            { name: "U S BK NA", assets: 659191 },
+            { name: "GOLDMAN SACHS BK USA", assets: 598460 },
+            { name: "PNC BK NA", assets: 549324 },
+            { name: "TRUIST BK", assets: 527488 },
+            { name: "CAPITAL ONE NA", assets: 490573 },
+            { name: "STATE STREET B&TC", assets: 368219 },
+            { name: "TD BK NA", assets: 366507 },
+            { name: "BANK OF NY MELLON", assets: 356262 },
+            { name: "BMO BK NA", assets: 257049 },
+            { name: "MORGAN STANLEY BK NA", assets: 234481 },
+            { name: "FIRST-CITIZENS B&TC", assets: 228632 },
+            { name: "MORGAN STANLEY PRIV BK NA", assets: 223785 },
+            { name: "CITIZENS BK NA", assets: 220014 },
+            { name: "FIFTH THIRD BK NA", assets: 211921 },
+            { name: "MANUFACTURERS & TRADERS TC", assets: 209801 },
+            { name: "HUNTINGTON NB", assets: 208159 },
+            { name: "AMERICAN EXPRESS NB", assets: 203448 },
+            { name: "KEYBANK NA", assets: 185776 },
+            { name: "ALLY BK", assets: 182323 },
+            { name: "HSBC BK USA NA", assets: 166237 },
+            { name: "NORTHERN TC", assets: 164498 },
+            { name: "REGIONS BK", assets: 158421 },
+            { name: "DISCOVER BK", assets: 145413 },
+            { name: "SANTANDER BK NA", assets: 104559 },
+            { name: "FLAGSTAR BK NA", assets: 97568 },
+            { name: "CITY NB", assets: 93149 },
+            { name: "ZIONS BC NA", assets: 87992 },
+            { name: "WESTERN ALLI BK", assets: 82944 },
+            { name: "FIRST HORIZON BK", assets: 81202 },
+            { name: "WEBSTER BK NA", assets: 80212 },
+            { name: "COMERICA BK", assets: 77698 },
+            { name: "EAST WEST BK", assets: 75712 },
+            { name: "UMB BK NA", assets: 69014 },
+            { name: "SOUTHSTATE BK NA", assets: 65109 },
+            { name: "VALLEY NB", assets: 61818 },
+            { name: "CIBC BK USA", assets: 61303 }
+        ];
+
+        // Function to fetch AAVE TVL from DeFiLlama
+        async function fetchAaveTVL() {
+            try {
+                const response = await fetch('https://api.llama.fi/protocol/aave-v3');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch AAVE TVL data');
+                }
+                const data = await response.json();
+                return data.tvl || 0; // TVL in USD
+            } catch (error) {
+                console.error('Error fetching AAVE TVL:', error);
+                throw error;
+            }
+        }
+
+        // Function to format numbers with commas
+        function formatNumber(num) {
+            return num.toLocaleString();
+        }
+
+        // Function to render the table with dynamic ranking
+        function renderTable(aaveTVL) {
+            const tableBody = document.getElementById('tableBody');
+            const loadingDiv = document.getElementById('loading');
+            
+            // Hide loading
+            loadingDiv.style.display = 'none';
+            
+            // Combine banks and AAVE data
+            const allData = [
+                ...banksData.map(bank => ({
+                    name: bank.name,
+                    assets: bank.assets,
+                    type: 'Bank'
+                })),
+                {
+                    name: 'AAVE V3',
+                    assets: aaveTVL / 1000000, // Convert from USD to millions
+                    type: 'DeFi Protocol'
+                }
+            ];
+            
+            // Sort by assets (descending)
+            allData.sort((a, b) => b.assets - a.assets);
+            
+            // Generate table rows
+            const tableRows = allData.map((item, index) => {
+                const rowClass = item.type === 'DeFi Protocol' ? 'aave-row' : '';
+                return `
+                    <tr class="${rowClass}">
+                        <td>${index + 1}</td>
+                        <td>${item.name}</td>
+                        <td>${formatNumber(Math.round(item.assets))}</td>
+                        <td>${item.type}</td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = tableRows.join('');
+        }
+
+        // Function to handle errors
+        function showError(message) {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            
+            loadingDiv.style.display = 'none';
+            errorDiv.textContent = `Error: ${message}`;
+            errorDiv.style.display = 'block';
+        }
+
+        // Initialize the page
+        async function init() {
+            try {
+                const aaveTVL = await fetchAaveTVL();
+                renderTable(aaveTVL);
+            } catch (error) {
+                showError('Failed to load AAVE TVL data. Please try again later.');
+            }
+        }
+
+        // Start the application
+        init();
+    </script>
 </body>
 </html>
