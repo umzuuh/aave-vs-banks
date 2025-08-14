@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aave vs Banks</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjY2IiBoZWlnaHQ9IjEzOSIgdmlld0JveD0iMCAwIDI2NiAxMzkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik05Ny41NDE4IDEzOC41MzNDMTEyLjQ2MSAxMzguNTMzIDEyNC41NTYgMTI2LjQzOCAxMjQuNTU2IDExMS41MThDMTI0LjU1NiA5Ni41OTg3IDExMi40NjEgODQuNTAzOSA5Ny41NDE4IDg0LjUwMzlDODIuNjIyMSA4NC41MDM5IDcwLjUyNzMgOTYuNTk4NyA3MC41MjczIDExMS41MThDNzAuNTI3MyAxMjYuNDM4IDgyLjYyMjEgMTM4LjUzMyA5Ny41NDE4IDEzOC41MzNaIiBmaWxsPSIjMDAwMDAwIi8+CjxwYXRoIGQ9Ik0xNjguMTQ5IDEzOC41MzNDMTgzLjA2OSAxMzguNTMzIDE5NS4xNjQgMTI2LjQzOCAxOTUuMTY0IDExMS41MThDMTk1LjE2NCA5Ni41OTg3IDE4My4wNjkgODQuNTAzOSAxNjguMTQ5IDg0LjUwMzlDMTUzLjIzIDg0LjUwMzkgMTQxLjEzNSA5Ni41OTg3IDE0MS4xMzUgMTExLjUxOEMxNDEuMTM1IDEyNi40MzggMTUzLjIzIDEzOC41MzMgMTY4LjE0OSAxMzguNTMzWiIgZmlsbD0iIzAwMDAwMCIvPgo8cGF0aCBkPSJNMTMyLjggMEM1OS40NDk3IDAgLTAuMDE5MTk1NCA2MC42MDE3IDQuNjQ3ODZlLTA2IDEzNS4zMzVIMzMuOTI2NEMzMy45MjY0IDc5LjMyODEgNzcuODQzMyAzMy45MiAxMzIuOCAzMy45MkMxODcuNzU3IDMzLjkyIDIzMS42NzQgNzkuMzI4MSAyMzEuNjc0IDEzNS4zMzVIMjY1LjZDMjY1LjYxMyA2MC42MDE3IDIwNi4xNDQgMCAxMzIuOCAwWiIgZmlsbD0iIzAwMDAwMCIvPgo8L3N2Zz4K">
     <style>
         body {
             background-color: #9896FF;
@@ -79,7 +80,7 @@
         }
         
         .aave-row {
-            background-color: #E2E0FF;
+            background-color: #BDBBFF;
             font-weight: bold;
             position: sticky;
             bottom: 0;
@@ -197,105 +198,88 @@
         // Function to fetch AAVE TVL from DeFiLlama
         async function fetchAaveTVL() {
             try {
-                console.log('Fetching AAVE TVL from DeFiLlama...');
+                console.log('Fetching AAVE TVL from DeFiLlama API...');
                 
-                // Try multiple approaches to get AAVE TVL
-                console.log('Attempting to scrape DeFiLlama page...');
+                // Use the official DeFiLlama API endpoint for AAVE
+                const response = await fetch('https://api.llama.fi/protocol/aave');
                 
-                // Approach 1: Try direct fetch (might work in some browsers)
-                try {
-                    const directResponse = await fetch('https://defillama.com/protocol/aave', {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'text/html',
-                            'User-Agent': 'Mozilla/5.0 (compatible; AAVE-TVL-Scraper/1.0)'
-                        }
-                    });
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('AAVE TVL data received from API:', data);
                     
-                    if (directResponse.ok) {
-                        const html = await directResponse.text();
-                        console.log('Direct fetch successful');
-                        const tvl = parseTVLFromHTML(html);
-                        if (tvl > 0) return tvl;
+                    // The API returns TVL in USD (no need for conversion)
+                    if (data.tvl && typeof data.tvl === 'number') {
+                        return data.tvl;
                     }
-                } catch (directError) {
-                    console.log('Direct fetch failed, trying CORS proxy...');
-                }
-                
-                // Approach 2: Use CORS proxy
-                const corsProxies = [
-                    'https://cors-anywhere.herokuapp.com/',
-                    'https://api.allorigins.win/raw?url=',
-                    'https://corsproxy.io/?'
-                ];
-                
-                for (const proxy of corsProxies) {
-                    try {
-                        const defillamaUrl = 'https://defillama.com/protocol/aave';
-                        const response = await fetch(proxy + defillamaUrl, {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'text/html'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const html = await response.text();
-                            console.log(`CORS proxy ${proxy} successful`);
-                            const tvl = parseTVLFromHTML(html);
-                            if (tvl > 0) return tvl;
-                        }
-                    } catch (proxyError) {
-                        console.log(`CORS proxy ${proxy} failed:`, proxyError.message);
-                        continue;
+                    
+                    // If tvl is not directly available, try to find it in the response
+                    if (data.currentChainTvls && data.currentChainTvls.ethereum) {
+                        return data.currentChainTvls.ethereum;
                     }
+                    
+                    throw new Error('TVL data not found in API response');
+                } else {
+                    throw new Error(`API request failed with status: ${response.status}`);
                 }
-                
-                throw new Error('All scraping attempts failed');
                 
             } catch (error) {
-                console.error('Error fetching AAVE TVL from DeFiLlama:', error);
+                console.error('Error fetching AAVE TVL from DeFiLlama API:', error);
                 
-                // Fallback to API endpoints
-                console.log('Trying API fallback...');
-                return await fetchAaveTVLFromDeFiLlama();
+                // Fallback to alternative API endpoints
+                console.log('Trying alternative API endpoints...');
+                return await fetchAaveTVLFromAlternativeAPIs();
             }
         }
         
-        // Fallback function to fetch from DeFiLlama API endpoints
-        async function fetchAaveTVLFromDeFiLlama() {
+        // Fallback function to fetch from alternative DeFiLlama API endpoints
+        async function fetchAaveTVLFromAlternativeAPIs() {
             try {
                 const endpoints = [
                     'https://api.llama.fi/protocol/aave-v3',
-                    'https://api.llama.fi/protocol/aave',
-                    'https://api.llama.fi/protocol/aave-v2'
+                    'https://api.llama.fi/protocol/aave-v2',
+                    'https://api.llama.fi/protocol/aave'
                 ];
                 
                 for (const endpoint of endpoints) {
                     try {
-                        console.log(`Trying API endpoint: ${endpoint}`);
+                        console.log(`Trying alternative API endpoint: ${endpoint}`);
                         const response = await fetch(endpoint);
                         
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('AAVE TVL data received from API:', data);
-                            return data.tvl || 0;
+                            console.log('AAVE TVL data received from alternative API:', data);
+                            
+                            // Try different possible TVL fields
+                            if (data.tvl && typeof data.tvl === 'number') {
+                                return data.tvl;
+                            }
+                            
+                            if (data.currentChainTvls && data.currentChainTvls.ethereum) {
+                                return data.currentChainTvls.ethereum;
+                            }
+                            
+                            // If still no TVL, try to sum all chain TVLs
+                            if (data.currentChainTvls) {
+                                const totalTVL = Object.values(data.currentChainTvls).reduce((sum, tvl) => sum + (tvl || 0), 0);
+                                if (totalTVL > 0) {
+                                    return totalTVL;
+                                }
+                            }
                         }
                     } catch (endpointError) {
-                        console.log(`API endpoint ${endpoint} failed:`, endpointError.message);
+                        console.log(`Alternative API endpoint ${endpoint} failed:`, endpointError.message);
                         continue;
                     }
                 }
                 
-                throw new Error('All API endpoints failed');
+                throw new Error('All alternative API endpoints failed');
             } catch (error) {
-                console.error('API fallback also failed:', error);
+                console.error('Alternative API fallback also failed:', error);
                 throw error;
             }
         }
         
-        // Function to parse TVL from DeFiLlama HTML
-        function parseTVLFromHTML(html) {
+
             try {
                 console.log('Parsing HTML for TVL data...');
                 
