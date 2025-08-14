@@ -1,0 +1,20 @@
+{
+  "name": "fed-reserve-bank-scraper",
+  "version": "1.0.0",
+  "description": "Weekly scraper for Federal Reserve top 40 banks data",
+  "main": "src/scraper.js",
+  "scripts": {
+    "start": "node src/scraper.js",
+    "schedule": "node src/scheduler.js",
+    "test": "node src/test.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "axios": "^1.6.0",
+    "node-cron": "^3.0.3",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
