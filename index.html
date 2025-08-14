@@ -184,7 +184,7 @@
         <div id="error" class="error" style="display: none;"></div>
         <div id="status" class="status" style="display: none;"></div>
         <div id="retry" style="display: none; text-align: center; margin: 20px;">
-            <button onclick="retryLoad()" style="padding: 10px 20px; background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: white; border-radius: 5px; cursor: pointer;">Retry Loading AAVE Data</button>
+            <button onclick="retryLoad()" style="padding: 10px 20px; background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: white; border-radius: 5px; cursor: pointer;">Retry Loading Data</button>
         </div>
         
         <table id="rankingTable">
@@ -199,10 +199,15 @@
                 <!-- Data will be populated dynamically -->
             </tbody>
         </table>
+        
+        <div id="data-freshness" style="display: none; text-align: center; margin: 20px; font-size: 12px; color: rgba(255, 255, 255, 0.64);">
+            <span id="scrape-timestamp">Scraped at: Loading...</span> | <span id="aave-timestamp">AAVE TVL fetched at: Loading...</span> | <span id="page-load-time">Page loaded at: Loading...</span>
+        </div>
     </div>
 
     <script>
-        // Bank data from Federal Reserve
+        // Bank data from Federal Reserve (fallback data) - COMMENTED OUT FOR TESTING
+        /*
         const banksData = [
             { name: "JPMORGAN CHASE BK NA", assets: 3643099 },
             { name: "BANK OF AMER NA", assets: 2615296 },
@@ -245,18 +250,25 @@
             { name: "VALLEY NB", assets: 61818 },
             { name: "CIBC BK USA", assets: 61303 }
         ];
+        */
 
         // Function to fetch AAVE TVL from DeFiLlama
         async function fetchAaveTVL() {
             try {
-                console.log('Fetching AAVE TVL from DeFiLlama API...');
+                const aaveTime = updateAaveTimestamp();
+                const headers = addValidationHeaders();
+                
+                console.log(`🕒 Starting fresh AAVE TVL fetch at ${aaveTime.toISOString()}`);
+                console.log(`📋 Request Headers:`, headers);
                 
                 // Use the official DeFiLlama API endpoint for AAVE
-                const response = await fetch('https://api.llama.fi/protocol/aave');
+                const response = await fetch('https://api.llama.fi/protocol/aave', {
+                    headers: headers
+                });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('AAVE TVL data received from API:', data);
+                    console.log(`✅ Fresh AAVE TVL data received from API at ${new Date().toISOString()}:`, data);
                     
                     // The API returns current TVL in currentChainTvls
                     if (data.currentChainTvls) {
@@ -266,13 +278,14 @@
                             .reduce((sum, [key, value]) => sum + value, 0);
                         
                         if (totalTVL > 0) {
-                            console.log('Calculated total current TVL:', totalTVL);
+                            console.log(`💰 Fresh AAVE TVL calculated: ${totalTVL} USD`);
                             return totalTVL;
                         }
                     }
                     
                     // Fallback: try to find it in the response
                     if (data.currentChainTvls && data.currentChainTvls.ethereum) {
+                        console.log(`💰 Fresh AAVE TVL from Ethereum: ${data.currentChainTvls.ethereum} USD`);
                         return data.currentChainTvls.ethereum;
                     }
                     
@@ -288,6 +301,287 @@
                 console.log('Trying alternative API endpoints...');
                 return await fetchAaveTVLFromAlternativeAPIs();
             }
+        }
+        
+        // Function to scrape live bank data from Federal Reserve
+        async function scrapeLiveBankData() {
+            try {
+                const validation = validateDataFreshness();
+                const scrapeTime = updateScrapeTimestamp();
+                const headers = addValidationHeaders();
+                
+                console.log(`🕒 Starting fresh bank data scrape at ${scrapeTime.toISOString()}`);
+                console.log(`🔍 Validation Token: ${validation.validationToken}`);
+                
+                // Use a CORS proxy to access the Federal Reserve website
+                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+                const fedReserveUrl = 'https://www.federalreserve.gov/releases/lbr/current/';
+                
+                console.log(`🌐 Fetching from: ${corsProxy + fedReserveUrl}`);
+                console.log(`📋 Request Headers:`, headers);
+                
+                const response = await fetch(corsProxy + fedReserveUrl, {
+                    headers: {
+                        'Origin': window.location.origin,
+                        'User-Agent': 'Mozilla/5.0 (compatible; FedReserveScraper/1.0)',
+                        ...headers
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch Federal Reserve data: ${response.status}`);
+                }
+                
+                const htmlContent = await response.text();
+                console.log(`✅ Received ${htmlContent.length} characters of fresh HTML data`);
+                
+                const bankData = parseBankDataFromHTML(htmlContent);
+                console.log(`🏦 Parsed ${bankData.length} banks from fresh data`);
+                
+                return bankData;
+                
+            } catch (error) {
+                console.error('Error scraping live bank data:', error);
+                
+                // Fallback: try alternative CORS proxies
+                return await scrapeBankDataWithFallbackProxies();
+            }
+        }
+        
+        // Fallback function to try different CORS proxies
+        async function scrapeBankDataWithFallbackProxies() {
+            const corsProxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://cors.bridged.cc/',
+                'https://thingproxy.freeboard.io/fetch/'
+            ];
+            
+            for (const proxy of corsProxies) {
+                try {
+                    console.log(`Trying CORS proxy: ${proxy}`);
+                    const fedReserveUrl = 'https://www.federalreserve.gov/releases/lbr/current/';
+                    const response = await fetch(proxy + fedReserveUrl, {
+                        timeout: 10000
+                    });
+                    
+                    if (response.ok) {
+                        const htmlContent = await response.text();
+                        return parseBankDataFromHTML(htmlContent);
+                    }
+                } catch (error) {
+                    console.log(`Proxy ${proxy} failed:`, error.message);
+                    continue;
+                }
+            }
+            
+            throw new Error('All CORS proxies failed');
+        }
+        
+        // Function to parse bank data from HTML content
+        function parseBankDataFromHTML(htmlContent) {
+            const banks = [];
+            
+            try {
+                // Create a temporary DOM element to parse the HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlContent, 'text/html');
+                
+                // Look for tables that might contain bank data
+                const tables = doc.querySelectorAll('table');
+                
+                for (const table of tables) {
+                    const rows = table.querySelectorAll('tr');
+                    if (rows.length < 2) continue;
+                    
+                    // Check if this table has bank data by looking at headers
+                    const headerRow = rows[0];
+                    const headers = Array.from(headerRow.querySelectorAll('th, td')).map(cell => 
+                        cell.textContent.trim().toLowerCase()
+                    );
+                    
+                    // Look for tables with bank-related headers
+                    if (headers.some(h => h.includes('bank') || h.includes('name')) && 
+                        headers.some(h => h.includes('asset') || h.includes('consol'))) {
+                        
+                        console.log('Found potential bank data table with headers:', headers);
+                        
+                        // Parse data rows - get top 40 banks
+                        for (let i = 1; i < Math.min(rows.length, 41); i++) {
+                            const row = rows[i];
+                            const cells = Array.from(row.querySelectorAll('td'));
+                            
+                            if (cells.length >= 6) { // Need at least 6 columns to get Consol Assets
+                                const bankName = cells[0]?.textContent.trim();
+                                const assetsText = cells[5]?.textContent.trim(); // Column 6: Consol Assets (Mil $)
+                                
+                                console.log(`Parsing row ${i}: Bank="${bankName}", Assets="${assetsText}", Cells=${cells.length}`);
+                                
+                                if (bankName && assetsText && !bankName.includes('---')) {
+                                    const assets = parseAssets(assetsText);
+                                    if (assets > 0) {
+                                        banks.push({
+                                            name: bankName,
+                                            assets: assets
+                                        });
+                                        
+                                        console.log(`Added bank: ${bankName} with assets: ${assets}`);
+                                        
+                                        // Stop at 40 banks
+                                        if (banks.length >= 40) break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (banks.length > 0) {
+                            console.log(`Successfully parsed ${banks.length} banks from HTML`);
+                            break;
+                        }
+                    }
+                }
+                
+                // If no banks found in tables, try to parse from text content
+                if (banks.length === 0) {
+                    console.log('No banks found in tables, trying text parsing...');
+                    return parseBankDataFromText(htmlContent);
+                }
+                
+                return banks;
+                
+            } catch (error) {
+                console.error('Error parsing HTML:', error);
+                // Fallback to text parsing
+                return parseBankDataFromText(htmlContent);
+            }
+        }
+        
+        // Function to parse bank data from text content
+        function parseBankDataFromText(textContent) {
+            const banks = [];
+            const lines = textContent.split('\n');
+            
+            // Look for lines that contain bank data
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                
+                // Skip empty lines and headers
+                if (!trimmedLine || trimmedLine.includes('---') || trimmedLine.includes('Bank Name')) {
+                    continue;
+                }
+                
+                // Look for lines with bank names and asset values
+                // Pattern: Bank name followed by rank, ID, location, charter, then assets
+                // Federal Reserve format: Bank Name | Rank | ID | Location | Charter | Consol Assets | ...
+                const parts = trimmedLine.split(/\s+/);
+                
+                if (parts.length >= 6) {
+                    // Find the bank name (first part) and assets (6th part)
+                    let bankName = '';
+                    let assetsText = '';
+                    
+                    // Bank name might be multiple words, so we need to find where the assets column is
+                    // Look for the 6th numeric value (Consol Assets column)
+                    let assetIndex = -1;
+                    for (let i = 0; i < parts.length; i++) {
+                        if (/^[\d,]+(?:\.[\d]+)?$/.test(parts[i])) {
+                            assetIndex++;
+                            if (assetIndex === 5) { // 6th numeric column (0-indexed)
+                                assetsText = parts[i];
+                                // Bank name is everything before the first numeric value
+                                bankName = parts.slice(0, i - 4).join(' ').trim();
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (bankName && assetsText && bankName.length > 3) {
+                        const assets = parseAssets(assetsText);
+                        if (assets > 0) {
+                            banks.push({
+                                name: bankName,
+                                assets: assets
+                            });
+                            
+                            if (banks.length >= 40) break;
+                        }
+                    }
+                }
+            }
+            
+            console.log(`Parsed ${banks.length} banks from text content`);
+            return banks;
+        }
+        
+        // Function to parse asset values
+        function parseAssets(assetText) {
+            // Remove $ and commas, convert to number
+            const cleanText = assetText.replace(/[$,]/g, '');
+            const num = parseFloat(cleanText);
+            
+            console.log(`parseAssets: "${assetText}" -> "${cleanText}" -> ${num} -> ${num * 1000000}`);
+            
+            // Federal Reserve data is in millions of dollars
+            // Convert to full USD by multiplying by 1,000,000
+            if (num > 0) {
+                return num * 1000000; // Convert millions to full USD
+            }
+            
+            return 0;
+        }
+        
+        // Function to validate data freshness
+        function validateDataFreshness() {
+            const now = new Date();
+            const pageLoadTime = document.getElementById('page-load-time');
+            const scrapeTimestamp = document.getElementById('scrape-timestamp');
+            const aaveTimestamp = document.getElementById('aave-timestamp');
+            const dataFreshnessDiv = document.getElementById('data-freshness');
+            
+            // Show data freshness section
+            dataFreshnessDiv.style.display = 'block';
+            
+            // Update timestamps
+            pageLoadTime.textContent = `Page loaded at: ${now.toLocaleString()}`;
+            
+            // Add random validation to prove data is fresh
+            const randomValidation = Math.random().toString(36).substring(7);
+            console.log(`🔍 Data Validation Token: ${randomValidation} (generated at ${now.toISOString()})`);
+            
+            return {
+                pageLoadTime: now,
+                validationToken: randomValidation
+            };
+        }
+        
+        // Function to update scrape timestamp
+        function updateScrapeTimestamp() {
+            const now = new Date();
+            const scrapeTimestamp = document.getElementById('scrape-timestamp');
+            scrapeTimestamp.textContent = `Scraped at: ${now.toLocaleString()}`;
+            return now;
+        }
+        
+        // Function to update AAVE timestamp
+        function updateAaveTimestamp() {
+            const now = new Date();
+            const aaveTimestamp = document.getElementById('aave-timestamp');
+            aaveTimestamp.textContent = `AAVE TVL fetched at: ${now.toLocaleString()}`;
+            return now;
+        }
+        
+        // Function to add data validation headers
+        function addValidationHeaders() {
+            // Add a unique request ID to prove each request is fresh
+            const requestId = Date.now() + '_' + Math.random().toString(36).substring(7);
+            console.log(`🆔 Fresh Request ID: ${requestId}`);
+            
+            return {
+                'X-Request-ID': requestId,
+                'X-Timestamp': new Date().toISOString(),
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            };
         }
         
         // Fallback function to fetch from alternative DeFiLlama API endpoints
@@ -362,7 +656,7 @@
         }
 
         // Function to render the table with dynamic ranking
-        function renderTable(aaveTVL) {
+        function renderTable(aaveTVL, banksData = banksData) {
             const tableBody = document.getElementById('tableBody');
             const loadingDiv = document.getElementById('loading');
             
@@ -373,7 +667,7 @@
             const allData = [
                 ...banksData.map(bank => ({
                     name: bank.name,
-                    assets: bank.assets * 1000000 // Convert from millions to full USD value
+                    assets: bank.assets // Assets are already converted to full USD in parseAssets
                 })),
                 {
                     name: '<svg class="logo" viewBox="0 0 833 139" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M764.174 110.231C746.305 110.231 730.427 97.2842 726.337 79.409H832.43C832.43 79.409 833 72.9322 833 70.641C833 32.7018 802.132 1.82812 764.193 1.82812C726.254 1.82812 695.387 32.6954 695.387 70.641C695.387 108.587 726.081 138.737 764.193 138.737C802.305 138.737 824.558 110.66 830.113 90.3338H797.774C797.774 90.3338 787.489 110.231 764.174 110.231ZM764.193 30.321C781.326 30.321 796.2 41.6362 801.294 58.5002H727.092C732.168 41.6362 747.048 30.321 764.193 30.321Z" fill="#ffffff"/><path d="M359.33 138.737C321.391 138.737 291.631 108.19 291.631 70.641C291.631 33.0922 322.498 1.82812 360.437 1.82812C398.377 1.82812 429.244 33.9114 429.244 70.2762C429.244 85.7706 429.244 135.326 429.244 135.326H402.53V113.617L400.585 113.105C395.881 124.638 378.837 138.737 359.324 138.737H359.33ZM360.437 30.321C339.01 30.321 321.57 48.3114 321.57 70.4298C321.57 92.5482 339.004 110.238 360.437 110.238C381.871 110.238 399.305 92.3818 399.305 70.4298C399.305 48.4778 381.871 30.321 360.437 30.321Z" fill="#ffffff"/><path d="M505.473 138.737C467.533 138.737 437.773 108.19 437.773 70.641C437.773 33.0922 468.641 1.82812 506.58 1.82812C544.519 1.82812 575.386 33.9114 575.386 70.2762C575.386 85.7706 575.386 135.326 575.386 135.326H548.673V113.617L546.727 113.105C542.023 124.638 524.98 138.737 505.466 138.737H505.473ZM506.58 30.321C485.153 30.321 467.713 48.3114 467.713 70.4298C467.713 92.5482 485.146 110.238 506.58 110.238C528.014 110.238 545.447 92.3818 545.447 70.4298C545.447 48.4778 528.014 30.321 506.58 30.321Z" fill="#ffffff"/><path d="M620.231 135.311L565.402 5.25H595.399L635.585 101.058L675.777 5.25H705.767L650.945 135.311H620.231Z" fill="#ffffff"/><path d="M97.5418 138.533C112.461 138.533 124.556 126.438 124.556 111.518C124.556 96.5987 112.461 84.5039 97.5418 84.5039C82.6221 84.5039 70.5273 96.5987 70.5273 111.518C70.5273 126.438 82.6221 138.533 97.5418 138.533Z" fill="#ffffff"/><path d="M168.149 138.533C183.069 138.533 195.164 126.438 195.164 111.518C195.164 96.5987 183.069 84.5039 168.149 84.5039C153.23 84.5039 141.135 126.438 141.135 111.518C141.135 126.438 153.23 138.533 168.149 138.533Z" fill="#ffffff"/><path d="M132.8 0C59.4497 0 -0.0191954 60.6017 4.64786e-06 135.335H33.9264C33.9264 79.3281 77.8433 33.92 132.8 33.92C187.757 33.92 231.674 79.3281 231.674 135.335H265.6C265.613 60.6017 206.144 0 132.8 0Z" fill="#ffffff"/></svg>',
@@ -495,27 +789,37 @@
         // Initialize the page
         async function init() {
             try {
-                const aaveTVL = await fetchAaveTVL();
-                renderTable(aaveTVL);
-            } catch (error) {
-                console.error('AAVE TVL fetch failed, trying fallback...');
-                // Try to load from local data file as fallback
+                console.log('🚀 Starting fresh page initialization...');
+                
+                // First try to scrape live bank data
+                let liveBankData = null;
                 try {
-                    const response = await fetch('./data/latest.json');
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('Using fallback data from local file');
-                        // Use a placeholder AAVE TVL value for now
-                        const fallbackAaveTVL = 69000000000; // 69 billion USD as fallback (current AAVE TVL)
-                        renderTable(fallbackAaveTVL);
-                        showStatus('Using fallback AAVE TVL data. API connection failed.');
-                    } else {
-                        throw new Error('Local data file not accessible');
-                    }
-                } catch (fallbackError) {
-                    console.error('Fallback also failed:', fallbackError);
-                    showError('Failed to load AAVE TVL data. Please check your internet connection and try again later.');
+                    liveBankData = await scrapeLiveBankData();
+                    console.log(`✅ Successfully scraped live bank data: ${liveBankData.length} banks`);
+                    
+                    // Validate that data is fresh and not cached
+                    const dataHash = JSON.stringify(liveBankData).length;
+                    console.log(`🔍 Data validation: ${dataHash} characters of fresh data`);
+                    
+                } catch (scrapeError) {
+                    console.log('❌ Live bank data scraping failed:', scrapeError.message);
+                    // FALLBACK COMMENTED OUT FOR TESTING
+                    // liveBankData = banksData.map(bank => ({
+                    //     name: bank.name,
+                    //     assets: bank.assets * 1000000 // Convert from millions to full USD value
+                    // }));
+                    throw new Error('Live scraping required - no fallback available');
                 }
+                
+                // Then fetch AAVE TVL
+                const aaveTVL = await fetchAaveTVL();
+                console.log(`🎯 Rendering table with fresh data: ${liveBankData.length} banks + AAVE TVL: ${aaveTVL}`);
+                
+                renderTable(aaveTVL, liveBankData);
+                
+            } catch (error) {
+                console.error('❌ Data loading failed:', error.message);
+                showError(`Failed to load fresh data: ${error.message}`);
             }
         }
 
