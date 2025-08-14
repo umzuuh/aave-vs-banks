@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aave vs Banks</title>
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Aave vs Banks - DeFi Protocol Breaks into Top 40 U.S. Banks">
+    <meta property="og:description" content="Aave, a decentralized finance protocol, has broken into the top 40 U.S. banks by deposit size. See how DeFi compares to traditional banking institutions.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content=".">
+    <meta property="og:image" content=".">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Aave vs Banks - DeFi Protocol Ranking Among Top U.S. Banks">
+    <meta property="og:site_name" content="Aave vs Banks">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Aave vs Banks - DeFi Protocol Breaks into Top 40 U.S. Banks">
+    <meta name="twitter:description" content="Aave, a decentralized finance protocol, has broken into the top 40 U.S. banks by deposit size. See how DeFi compares to traditional banking institutions.">
+    <meta name="twitter:image" content=".">
+    <meta name="twitter:image:alt" content="Aave vs Banks - DeFi Protocol Ranking Among Top U.S. Banks">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="description" content="Aave, a decentralized finance protocol, has broken into the top 40 U.S. banks by deposit size. See how DeFi compares to traditional banking institutions.">
+    <meta name="keywords" content="Aave, DeFi, decentralized finance, banking, cryptocurrency, blockchain, traditional banks, Federal Reserve, deposits, TVL">
+    <meta name="author" content="Aave vs Banks">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -14,7 +37,7 @@
             color: white;
             font-family: "Inter", sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             display: flex;
             justify-content: center;
         }
@@ -27,6 +50,8 @@
         h1 {
             color: white;
             margin-bottom: 8px; /* Decrease spacing between title and data sources */
+            padding-left: 24px;
+            padding-right: 24px;
         }
         
         .logo {
@@ -50,6 +75,8 @@
         /* Add spacing between data sources and table */
         .data-sources {
             margin-bottom: 30px; /* Increase spacing between data sources and table */
+            padding-left: 24px;
+            padding-right: 24px;
         }
         
         table {
@@ -80,6 +107,12 @@
         
         th {
             font-weight: bold;
+        }
+        
+        /* Remove left padding from the first column (Ranking) */
+        th:first-child,
+        td:first-child {
+            padding-left: 24px;
         }
         
         .aave-row {
