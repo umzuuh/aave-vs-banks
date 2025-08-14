@@ -207,12 +207,20 @@
                     const data = await response.json();
                     console.log('AAVE TVL data received from API:', data);
                     
-                    // The API returns TVL in USD (no need for conversion)
-                    if (data.tvl && typeof data.tvl === 'number') {
-                        return data.tvl;
+                    // The API returns current TVL in currentChainTvls
+                    if (data.currentChainTvls) {
+                        // Sum all non-borrowed chain TVLs to get total current TVL
+                        const totalTVL = Object.entries(data.currentChainTvls)
+                            .filter(([key, value]) => !key.includes('-borrowed') && typeof value === 'number')
+                            .reduce((sum, [key, value]) => sum + value, 0);
+                        
+                        if (totalTVL > 0) {
+                            console.log('Calculated total current TVL:', totalTVL);
+                            return totalTVL;
+                        }
                     }
                     
-                    // If tvl is not directly available, try to find it in the response
+                    // Fallback: try to find it in the response
                     if (data.currentChainTvls && data.currentChainTvls.ethereum) {
                         return data.currentChainTvls.ethereum;
                     }
@@ -250,20 +258,21 @@
                             console.log('AAVE TVL data received from alternative API:', data);
                             
                             // Try different possible TVL fields
-                            if (data.tvl && typeof data.tvl === 'number') {
-                                return data.tvl;
-                            }
-                            
-                            if (data.currentChainTvls && data.currentChainTvls.ethereum) {
-                                return data.currentChainTvls.ethereum;
-                            }
-                            
-                            // If still no TVL, try to sum all chain TVLs
                             if (data.currentChainTvls) {
-                                const totalTVL = Object.values(data.currentChainTvls).reduce((sum, tvl) => sum + (tvl || 0), 0);
+                                // Sum all non-borrowed chain TVLs to get total current TVL
+                                const totalTVL = Object.entries(data.currentChainTvls)
+                                    .filter(([key, value]) => !key.includes('-borrowed') && typeof value === 'number')
+                                    .reduce((sum, [key, value]) => sum + value, 0);
+                                
                                 if (totalTVL > 0) {
+                                    console.log('Alternative API - Calculated total current TVL:', totalTVL);
                                     return totalTVL;
                                 }
+                            }
+                            
+                            // Fallback: try to find it in the response
+                            if (data.currentChainTvls && data.currentChainTvls.ethereum) {
+                                return data.currentChainTvls.ethereum;
                             }
                         }
                     } catch (endpointError) {
@@ -278,136 +287,8 @@
                 throw error;
             }
         }
-        
 
-            try {
-                console.log('Parsing HTML for TVL data...');
-                
-                // Pattern 1: Look specifically for AAVE TVL in the main content area
-                // DeFiLlama typically shows the main TVL prominently
-                const mainTvlPattern = /(?:TVL|Total Value Locked)[:\s]*\$([0-9]+\.?[0-9]*)(B|M|K)/i;
-                const mainMatch = html.match(mainTvlPattern);
-                if (mainMatch) {
-                    const value = parseFloat(mainMatch[1]);
-                    const unit = mainMatch[2].toUpperCase();
-                    let multiplier = 1;
-                    
-                    if (unit === 'B') multiplier = 1000000000;
-                    else if (unit === 'M') multiplier = 1000000;
-                    else if (unit === 'K') multiplier = 1000;
-                    
-                    const totalValue = value * multiplier;
-                    console.log('Found main TVL:', totalValue, 'from pattern:', mainMatch[0]);
-                    return totalValue;
-                }
-                
-                // Pattern 2: Look for the largest "$X.XXB" value (AAVE should be the main one)
-                const tvlPattern = /\$([0-9]+\.?[0-9]*)(B|M|K)/gi;
-                let match;
-                let maxValue = 0;
-                let bestMatch = '';
-                let allValues = [];
-                
-                while ((match = tvlPattern.exec(html)) !== null) {
-                    const value = parseFloat(match[1]);
-                    const unit = match[2].toUpperCase();
-                    let multiplier = 1;
-                    
-                    if (unit === 'B') multiplier = 1000000000;
-                    else if (unit === 'M') multiplier = 1000000;
-                    else if (unit === 'K') multiplier = 1000;
-                    
-                    const totalValue = value * multiplier;
-                    allValues.push({ value: totalValue, match: match[0] });
-                    
-                    // Prioritize values in the expected AAVE range (50B-100B)
-                    if (totalValue >= 50000000000 && totalValue <= 100000000000) {
-                        console.log('Found AAVE-like TVL:', totalValue, 'from:', match[0]);
-                        return totalValue;
-                    }
-                    
-                    if (totalValue > maxValue) {
-                        maxValue = totalValue;
-                        bestMatch = match[0];
-                    }
-                }
-                
-                // Debug: Log all found values
-                console.log('All TVL values found:', allValues.sort((a, b) => b.value - a.value).slice(0, 10));
-                
-                if (maxValue > 0) {
-                    console.log('Found largest TVL:', maxValue, 'from:', bestMatch);
-                    return maxValue;
-                }
-                
-                // Pattern 3: Look for script tags with specific AAVE data
-                const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
-                let scriptMatch;
-                while ((scriptMatch = scriptPattern.exec(html)) !== null) {
-                    const scriptContent = scriptMatch[1];
-                    
-                    // Look for AAVE-specific TVL data
-                    if (scriptContent.includes('aave') || scriptContent.includes('AAVE')) {
-                        const tvlPattern3 = /"tvl"?:?\s*([0-9]+)/gi;
-                        const match3 = scriptContent.match(tvlPattern3);
-                        if (match3) {
-                            for (const match of match3) {
-                                const value = match.replace(/"tvl"?:?\s*/, '');
-                                const numValue = parseFloat(value);
-                                if (numValue > 50000000000 && numValue < 100000000000) { // 50B-100B range
-                                    console.log('Found AAVE TVL in script:', numValue);
-                                    return numValue;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Pattern 4: Look for numbers in the 60-70 billion range specifically
-                const specificRangePattern = /([6-7][0-9]\.?[0-9]*B)/gi;
-                const specificMatch = html.match(specificRangePattern);
-                if (specificMatch) {
-                    for (const match of specificMatch) {
-                        const value = parseFloat(match.replace('B', ''));
-                        const totalValue = value * 1000000000;
-                        console.log('Found specific range TVL:', totalValue, 'from:', match);
-                        return totalValue;
-                    }
-                }
-                
-                // Pattern 5: Look for the main protocol TVL display (usually the largest number)
-                // This is often in a specific format like "69.2B" or "69,200M"
-                const mainProtocolPattern = /(?:protocol|main|total)[\s\w]*:?\s*\$?([0-9,]+\.?[0-9]*)(B|M|K)/gi;
-                const mainProtocolMatch = html.match(mainProtocolPattern);
-                if (mainProtocolMatch) {
-                    for (const match of mainProtocolMatch) {
-                        const parts = match.match(/([0-9,]+\.?[0-9]*)(B|M|K)/i);
-                        if (parts) {
-                            const value = parseFloat(parts[1].replace(/,/g, ''));
-                            const unit = parts[2].toUpperCase();
-                            let multiplier = 1;
-                            
-                            if (unit === 'B') multiplier = 1000000000;
-                            else if (unit === 'M') multiplier = 1000000;
-                            else if (unit === 'K') multiplier = 1000;
-                            
-                            const totalValue = value * multiplier;
-                            if (totalValue > 50000000000) { // Only consider values > 50B
-                                console.log('Found main protocol TVL:', totalValue, 'from:', match);
-                                return totalValue;
-                            }
-                        }
-                    }
-                }
-                
-                console.log('No specific AAVE TVL patterns found in HTML');
-                return 0;
-                
-            } catch (error) {
-                console.error('Error parsing TVL from HTML:', error);
-                return 0;
-            }
-        }
+
 
         // Function to format numbers with commas and add B/T suffixes
         function formatNumber(num) {
