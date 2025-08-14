@@ -272,13 +272,19 @@
                     
                     // The API returns current TVL in currentChainTvls
                     if (data.currentChainTvls) {
+                        // Log all available TVL data for debugging
+                        console.log('🔍 Available TVL data:', data.currentChainTvls);
+                        
                         // Sum all non-borrowed chain TVLs to get total current TVL
-                        const totalTVL = Object.entries(data.currentChainTvls)
-                            .filter(([key, value]) => !key.includes('-borrowed') && typeof value === 'number')
-                            .reduce((sum, [key, value]) => sum + value, 0);
+                        const nonBorrowedEntries = Object.entries(data.currentChainTvls)
+                            .filter(([key, value]) => !key.includes('-borrowed') && typeof value === 'number');
+                        
+                        console.log('🔍 Non-borrowed TVL entries:', nonBorrowedEntries);
+                        
+                        const totalTVL = nonBorrowedEntries.reduce((sum, [key, value]) => sum + value, 0);
                         
                         if (totalTVL > 0) {
-                            console.log(`💰 Fresh AAVE TVL calculated: ${totalTVL} USD`);
+                            console.log(`💰 Fresh AAVE TVL calculated: ${totalTVL} USD (${(totalTVL / 1000000000).toFixed(2)}B)`);
                             return totalTVL;
                         }
                     }
@@ -604,13 +610,18 @@
                             
                             // Try different possible TVL fields
                             if (data.currentChainTvls) {
+                                console.log('🔍 Alternative API - Available TVL data:', data.currentChainTvls);
+                                
                                 // Sum all non-borrowed chain TVLs to get total current TVL
-                                const totalTVL = Object.entries(data.currentChainTvls)
-                                    .filter(([key, value]) => !key.includes('-borrowed') && typeof value === 'number')
-                                    .reduce((sum, [key, value]) => sum + value, 0);
+                                const nonBorrowedEntries = Object.entries(data.currentChainTvls)
+                                    .filter(([key, value]) => !key.includes('-borrowed') && typeof value === 'number');
+                                
+                                console.log('🔍 Alternative API - Non-borrowed TVL entries:', nonBorrowedEntries);
+                                
+                                const totalTVL = nonBorrowedEntries.reduce((sum, [key, value]) => sum + value, 0);
                                 
                                 if (totalTVL > 0) {
-                                    console.log('Alternative API - Calculated total current TVL:', totalTVL);
+                                    console.log(`💰 Alternative API - Calculated total current TVL: ${totalTVL} USD (${(totalTVL / 1000000000).toFixed(2)}B)`);
                                     return totalTVL;
                                 }
                             }
