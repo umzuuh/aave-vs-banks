@@ -1,0 +1,42 @@
+{
+  "scraper": {
+    "sourceUrl": "https://www.federalreserve.gov/releases/lbr/current/",
+    "dataDir": "./data",
+    "retryAttempts": 3,
+    "retryDelay": 5000
+  },
+  "scheduler": {
+    "cronExpression": "0 6 * * 1",
+    "timezone": "America/New_York"
+  },
+  "notifications": {
+    "enabled": true,
+    "types": ["console", "file"],
+    "email": {
+      "enabled": false,
+      "smtp": {
+        "host": "",
+        "port": 587,
+        "secure": false,
+        "auth": {
+          "user": "",
+          "pass": ""
+        }
+      },
+      "recipients": []
+    },
+    "slack": {
+      "enabled": false,
+      "webhookUrl": ""
+    }
+  },
+  "dataRetention": {
+    "keepWeeks": 12,
+    "cleanupOnStartup": true
+  },
+  "validation": {
+    "minBankCount": 35,
+    "maxAssetVariation": 0.20,
+    "requiredFields": ["rank", "bankName", "assets"]
+  }
+}
